@@ -6,9 +6,9 @@ AWS_CONFIG_FILE=~/.aws/config /bin/sh ~/mysql_bkup_to_S3.sh ~/mysql.bkup.conf
 
 # 生成されるファイル
 
-* {prefix.}<SERVER}.<SCHEME>.<YMDHIS>.create.sql{.gz}
-* {prefix.}<SERVER}.<SCHEME>.<YMDHIS>.data.sql{.gz}
-* {prefix.}<SERVER}.<SCHEME>.<YMDHIS>.log.sql{.gz}
+* {prefix.}SERVER.SCHEME.YMDHIS.create.sql{.gz}
+* {prefix.}SERVER.SCHEME.YMDHIS.data.sql{.gz}
+* {prefix.}SERVER.SCHEME.YMDHIS.log.sql{.gz}
 
 # mysql.bkup.conf
 設定ファイル

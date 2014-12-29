@@ -28,5 +28,5 @@ AWS_CONFIG_FILE=~/.aws/config /bin/sh ~/mysql_bkup_to_S3.sh ~/mysql.bkup.conf
 | OPT_BASE                | "--quick --add-drop-table --add-locks --extended-insert --order-by-primary --single-transaction" | お好みで |
 | TABLE_IGNORE            | ()           | リスト形式でデータダンプを行わないテーブルを指定 |
 | TABLE_LOG               | ()           | ここに指定したテーブルはlog.sqlに別途データダンプされます |
-| S3_DIR                  | "<s3-bucket>/mysql/${SERVER}/${SCHEME}" | S3のバケットを指定 |
+| S3_DIR                  | "s3-bucket/mysql/${SERVER}/${SCHEME}" | S3のバケットを指定 |
 

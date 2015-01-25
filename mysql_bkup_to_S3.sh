@@ -11,7 +11,7 @@ set -eu
 # ======================================================
 
 PWD=`pwd`
-CMD=`basename $0`
+CMD=`dirname $0`/`basename $0`
 YMDHIS=`date +%Y%m%d-%H%M%S`
 
 ## check arg
@@ -96,38 +96,29 @@ if [ "${FLG_RESET_AUTOINCREMENT}" = "y" ]; then
 	sed -i 's/\s\+AUTO_INCREMENT=[0-9]\+//' ${BKUPFILE_CREATE}
 fi
 
-logger -t ${CMD} DONE mysqldump.
+logger -t ${CMD} END mysqldump.
 
+EXT=''
 if [ "${FLG_GZIP}" = "y" ]; then
 	logger -t ${CMD} START gzip.
+
+	EXT='.gz'
 
 	nice gzip ${BKUPFILE_BASE}*.sql
 
 	logger -t ${CMD} END gzip.
+fi
 
-	if [ ! -z "${S3_DIR}" ]; then
-		logger -t ${CMD} START cp to S3.
+if [ ! -z "${S3_DIR}" ]; then
+	logger -t ${CMD} START cp to S3.
 
-		aws s3 cp --quiet ${BKUPFILE_CREATE}.gz s3://${S3_DIR}/
-		aws s3 cp --quiet ${BKUPFILE_DATA}.gz s3://${S3_DIR}/
-		if [ ${#TABLE_LOG[@]} -gt 0 ]; then
-			aws s3 --quiet cp ${BKUPFILE_LOG}.gz s3://${S3_DIR}/
-		fi
-
-		logger -t ${CMD} END cp to S3.
+	aws s3 cp --quiet ${BKUPFILE_CREATE}${EXT} s3://${S3_DIR}/
+	aws s3 cp --quiet ${BKUPFILE_DATA}${EXT} s3://${S3_DIR}/
+	if [ ${#TABLE_LOG[@]} -gt 0 ]; then
+		aws s3 cp --quiet ${BKUPFILE_LOG}${EXT} s3://${S3_DIR}/
 	fi
-else
-	if [ ! -z "${S3_DIR}" ]; then
-		logger -t ${CMD} START cp to S3.
 
-		aws s3 cp --quiet ${BKUPFILE_CREATE} s3://${S3_DIR}/
-		aws s3 cp --quiet ${BKUPFILE_DATA} s3://${S3_DIR}/
-		if [ ${#TABLE_LOG[@]} -gt 0 ]; then
-			aws s3 cp --quiet ${BKUPFILE_LOG} s3://${S3_DIR}/
-		fi
-
-		logger -t ${CMD} END cp to S3.
-	fi
+	logger -t ${CMD} END cp to S3.
 fi
 
 if [ "${FLG_BKUP_DELETE}" = "y" ]; then

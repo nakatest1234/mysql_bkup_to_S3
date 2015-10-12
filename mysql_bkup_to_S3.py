@@ -54,10 +54,10 @@ def main(config):
 	})
 
 	# data
-	#dumplist.append({
-	#	'tag': 'data',
-	#	'cmd': map(lambda x, s: '--ignore-table={0}.{1}'.format(s,x), list_ignore, [scheme] * len(list_ignore)) + ['-t', '-c'],
-	#})
+	dumplist.append({
+		'tag': 'data',
+		'cmd': map(lambda x, s: '--ignore-table={0}.{1}'.format(s,x), list_ignore, [scheme] * len(list_ignore)) + ['-t', '-c'],
+	})
 
 	# data(split tables)
 	for table in split_tables:

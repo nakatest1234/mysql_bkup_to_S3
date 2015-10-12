@@ -116,7 +116,7 @@ def exec_s3_upload(s3_path, dumplist):
 	s3_path = re.sub(r'^s3://|/$', '', s3_path)
 
 	for data in dumplist:
-		syslog.syslog('s3: START {0}'.format(data['basename']))
+		syslog.syslog('s3: START {0}'.format(data['s3_src']))
 		cmd = ['aws', 's3', 'cp', '--quiet', data['s3_src'], 's3://{0}/'.format(s3_path)]
 
 		p = subprocess.Popen(cmd, stderr=subprocess.STDOUT, shell=False)

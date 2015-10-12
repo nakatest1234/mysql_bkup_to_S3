@@ -1,0 +1,15 @@
+CMD_DUMP:
+TMPDIR:
+OPT_BASE:
+PREFIX:
+GZIP: y
+SERVER: localhost
+ID: test1234
+PW: test1234
+SCHEME: test1234
+IGNORE_TABLES:
+  #- t_ignore_1
+  #- t_ignore_2
+SPLIT_TABLES:
+  #logs:
+  #  - t_log_1

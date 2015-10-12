@@ -146,7 +146,7 @@ def checkopt(config):
 		config['IGNORE_TABLES'] = []
 
 	if ('SPLIT_TABLES' not in config or not isinstance(config['SPLIT_TABLES'], types.DictType)):
-		config['SPLIT_TABLES'] = []
+		config['SPLIT_TABLES'] = {}
 
 	return config
 

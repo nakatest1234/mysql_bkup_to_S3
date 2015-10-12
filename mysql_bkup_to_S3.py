@@ -11,7 +11,7 @@ import tempfile
 import syslog
 import time
 import subprocess
-
+import re
 
 def main(config):
 	# vars
@@ -71,6 +71,7 @@ def main(config):
 		data['basename'] = '{0}.{1}.sql'.format(basename, data['tag'])
 		data['path']     = os.path.join(exec_tmpdir, data['basename'])
 		data['cmd']      = [config['CMD_DUMP'], '--result_file={0}'.format(data['path'])] + cmd_base + data['cmd']
+		data['s3_src']   = data['path'] if (config['GZIP'].lower()!='y') else data['path'] + '.gz'
 
 	# exec mysqldump
 	exec_mysqldump(dumplist)
@@ -78,6 +79,10 @@ def main(config):
 	# exec gzip
 	if (config['GZIP'].lower()=='y'):
 		exec_gzip(config['CMD_GZIP'], dumplist)
+
+	# exec S3 upload
+	if (config['S3_DIR']):
+		exec_s3_upload(config['S3_DIR'], dumplist)
 
 	return True
 
@@ -102,6 +107,22 @@ def exec_gzip(gzip, dumplist):
 		p.wait()
 
 		syslog.syslog('gzip: END {0}'.format(data['basename']))
+
+	return True
+
+
+def exec_s3_upload(s3_path, dumplist):
+	#s3_path = re.sub(r'^s3://|/$', '', s3_path, re.IGNORECASE)
+	s3_path = re.sub(r'^s3://|/$', '', s3_path)
+
+	for data in dumplist:
+		syslog.syslog('s3: START {0}'.format(data['basename']))
+		cmd = ['aws', 's3', 'cp', '--quiet', data['s3_src'], 's3://{0}/'.format(s3_path)]
+
+		p = subprocess.Popen(cmd, stderr=subprocess.STDOUT, shell=False)
+		p.wait()
+
+		syslog.syslog('s3: END {0}'.format(data['basename']))
 
 	return True
 
@@ -138,6 +159,9 @@ def checkopt(config):
 
 	if ('CMD_GZIP' not in config or config['CMD_GZIP']==False or not isinstance(config['CMD_GZIP'], types.StringType)):
 		config['CMD_GZIP'] = 'gzip'
+
+	if ('S3_DIR' not in config or config['S3_DIR']==False or not isinstance(config['S3_DIR'], types.StringType)):
+		config['S3_DIR'] = ''
 
 	if ('OPT_BASE' not in config or not isinstance(config['OPT_BASE'], types.ListType)):
 		config['OPT_BASE'] = ['--quick', '--add-drop-table', '--add-locks', '--extended-insert', '--order-by-primary', '--single-transaction']

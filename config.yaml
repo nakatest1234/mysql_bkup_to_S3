@@ -3,6 +3,7 @@ TMPDIR:
 OPT_BASE:
 PREFIX:
 GZIP: y
+BKUP_DAYS: 7
 SERVER: localhost
 ID: test1234
 PW: test1234

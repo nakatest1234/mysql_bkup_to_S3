@@ -10,8 +10,10 @@ import types
 import tempfile
 import syslog
 import time
+import datetime
 import subprocess
 import re
+import glob
 
 def main(config):
 	# vars
@@ -22,8 +24,6 @@ def main(config):
 	server        = config['SERVER']
 	scheme        = config['SCHEME']
 	prefix        = config['PREFIX']
-	id            = config['ID']
-	pw            = config['PW']
 	opt_base      = config['OPT_BASE']
 	ignore_tables = config['IGNORE_TABLES']
 	split_tables  = config['SPLIT_TABLES']
@@ -45,7 +45,7 @@ def main(config):
 	basename = '{0}{1}.{2}.{3}-{4}'.format(prefix, server, scheme, ymd, his)
 	bkupfile_base = os.path.join(exec_tmpdir, basename)
 
-	cmd_base   = opt_base + ['-u', id, '-p'+pw, '-h', server, scheme]
+	cmd_base = opt_base + ['-u', config['ID'], '-p'+config['PW'], '-h', server, scheme]
 
 	# create
 	dumplist.append({
@@ -68,7 +68,7 @@ def main(config):
 
 	# make dumplist hash
 	for data in dumplist:
-		data['basename'] = '{0}.{1}.sql'.format(basename, data['tag'])
+		data['basename'] = '{0}.{1}.{2}'.format(basename, data['tag'], config['SUFFIX'])
 		data['path']     = os.path.join(exec_tmpdir, data['basename'])
 		data['cmd']      = [config['CMD_DUMP'], '--result_file={0}'.format(data['path'])] + cmd_base + data['cmd']
 		data['s3_src']   = data['path'] if (config['GZIP'].lower()!='y') else data['path'] + '.gz'
@@ -83,6 +83,10 @@ def main(config):
 	# exec S3 upload
 	if (config['S3_DIR']):
 		exec_s3_upload(config['S3_DIR'], dumplist)
+
+	# exec backup delete
+	if (config['BKUP_DAYS']>0):
+		exec_backup_delete(config)
 
 	return True
 
@@ -127,8 +131,43 @@ def exec_s3_upload(s3_path, dumplist):
 	return True
 
 
+def exec_backup_delete(config):
+	day        = config['BKUP_DAYS']
+	target_dir = get_exec_tmp_parent_dir(config)
+
+	if (os.path.exists(target_dir)):
+		#cmd = ['find', target_dir, '-type', 'f', '-mtime', '+{0}'.format(day), '-exec', 'rm', '-f', '"{}"', '\\;']
+		#print " ".join(cmd)
+		#p = subprocess.Popen(cmd, stderr=subprocess.STDOUT, shell=False)
+		#p.wait()
+
+		#cmd = ['find', target_dir, '-type', 'd', '-empty', '-print0', '|', 'xargs', '--no-run-if-empty', '-0', 'rmdir']
+		#print " ".join(cmd)
+		#p = subprocess.Popen(cmd, stderr=subprocess.STDOUT, shell=False)
+		#p.wait()
+
+		del_date = datetime.datetime.now() - datetime.timedelta(days=day)
+		del_time = time.mktime(del_date.timetuple())
+
+		for (root, dirs, files) in os.walk(target_dir):
+			for file in files:
+				path = os.path.join(root, file)
+
+				if os.path.getmtime(path) < del_time:
+					os.remove(path)
+					syslog.syslog('remove: {0}'.format(path))
+
+		for (root, dirs, files) in os.walk(target_dir):
+			for dir in dirs:
+				path = os.path.join(root, dir)
+				if len(os.listdir(path))==0:
+					os.rmdir(path)
+					syslog.syslog('rmdir: {0}'.format(path))
+
+	return True
+
 def get_exec_tmpdir(config, ymd):
-	exec_tmpdir = os.path.join(config['TMPDIR'], config['SERVER'], config['SCHEME'], ymd)
+	exec_tmpdir = os.path.join(get_exec_tmp_parent_dir(config), ymd)
 
 	# make temporary dir
 	syslog.syslog(exec_tmpdir)
@@ -138,6 +177,10 @@ def get_exec_tmpdir(config, ymd):
 		#os.umask(umask)
 
 	return exec_tmpdir
+
+
+def get_exec_tmp_parent_dir(config):
+	return os.path.join(config['TMPDIR'], config['SERVER'], config['SCHEME'])
 
 
 def checkopt(config):
@@ -151,8 +194,14 @@ def checkopt(config):
 	if ('PREFIX' not in config or config['PREFIX']==False or not isinstance(config['PREFIX'], types.StringType)):
 		config['PREFIX'] = 'bkup.mysql'
 
+	if ('SUFFIX' not in config or config['SUFFIX']==False or not isinstance(config['SUFFIX'], types.StringType)):
+		config['SUFFIX'] = 'sql'
+
 	if ('GZIP' not in config or config['GZIP']==False or not isinstance(config['GZIP'], types.StringType)):
 		config['GZIP'] = 'y'
+
+	if ('BKUP_DAYS' not in config or config['BKUP_DAYS']==False or not isinstance(config['BKUP_DAYS'], types.IntType)):
+		config['BKUP_DAYS'] = 0
 
 	if ('CMD_DUMP' not in config or config['CMD_DUMP']==False or not isinstance(config['CMD_DUMP'], types.StringType)):
 		config['CMD_DUMP'] = 'mysqldump'

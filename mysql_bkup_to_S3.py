@@ -14,6 +14,7 @@ import datetime
 import subprocess
 import re
 import glob
+import ConfigParser
 
 def main(config):
 	# vars
@@ -42,11 +43,6 @@ def main(config):
 	if (config['PREFIX']):
 		prefix = prefix + '.'
 
-	basename = '{0}{1}.{2}.{3}-{4}'.format(prefix, server, scheme, ymd, his)
-	bkupfile_base = os.path.join(exec_tmpdir, basename)
-
-	cmd_base = opt_base + ['-u', config['ID'], '-p'+config['PW'], '-h', server, scheme]
-
 	# create
 	dumplist.append({
 		'tag': 'create',
@@ -66,15 +62,49 @@ def main(config):
 			'cmd': ['-t', '-c'] + split_tables[table]
 		})
 
+
+	cmd_base = []
+
+	if (config['DEFAULTS-EXTRA-FILE'].lower()=='y'):
+		# defaults-extra-file
+		config_extra = ConfigParser.SafeConfigParser()
+		config_extra.add_section('mysqldump')
+		config_extra.set('mysqldump', 'user',     str(config['ID']))
+		config_extra.set('mysqldump', 'password', str(config['PW']))
+
+		# create temporary file
+		temp_extra = tempfile.NamedTemporaryFile(mode='w+t')
+		temp_extra.seek(0)
+
+		# write defaults-extra-file to temporary file
+		config_extra.write(temp_extra.file)
+		temp_extra.flush()
+
+		# mysqldump need first option '--defaults-extra-file'
+		cmd_base = ['--defaults-extra-file={0}'.format(temp_extra.name)]
+	else:
+		# id, password
+		cmd_base = ['-u', config['ID'], '-p'+config['PW']]
+
+	# common command line phrase
+	cmd_base += opt_base + ['-h', server, scheme]
+
+	# dumpfile basename
+	basename = '{0}{1}.{2}.{3}-{4}'.format(prefix, server, scheme, ymd, his)
+
 	# make dumplist hash
 	for data in dumplist:
 		data['basename'] = '{0}.{1}.{2}'.format(basename, data['tag'], config['SUFFIX'])
 		data['path']     = os.path.join(exec_tmpdir, data['basename'])
-		data['cmd']      = [config['CMD_DUMP'], '--result_file={0}'.format(data['path'])] + cmd_base + data['cmd']
+		data['cmd']      = [config['CMD_DUMP']] + cmd_base + data['cmd'] + ['--result_file={0}'.format(data['path'])]
 		data['s3_src']   = data['path'] if (config['GZIP'].lower()!='y') else data['path'] + '.gz'
 
 	# exec mysqldump
 	exec_mysqldump(dumplist)
+
+	# remove temporary file
+	if (config['DEFAULTS-EXTRA-FILE'].lower()=='y'):
+		temp_extra.close()
 
 	# exec gzip
 	if (config['GZIP'].lower()=='y'):
@@ -187,6 +217,9 @@ def checkopt(config):
 	for k in ['ID', 'PW', 'SCHEME', 'SERVER']:
 		if (k not in config or config[k]==False):
 			raise Exception(0, k+': not found')
+
+	if ('DEFAULTS-EXTRA-FILE' not in config or config['DEFAULTS-EXTRA-FILE']==False or not isinstance(config['DEFAULTS-EXTRA-FILE'], types.StringType)):
+		config['DEFAULTS-EXTRA-FILE'] = 'y'
 
 	if ('TMPDIR' not in config or config['TMPDIR']==False or not isinstance(config['TMPDIR'], types.StringType)):
 		config['TMPDIR'] = tempfile.gettempdir()

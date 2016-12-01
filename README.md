@@ -19,6 +19,7 @@ AWS_CONFIG_FILE=~/.aws/config /bin/sh ~/mysql_bkup_to_S3.sh ~/mysql.bkup.conf
 | SCHEME                  | 'naka1234'   | db名 |
 | ID                      | 'naka1234'   | id   |
 | PW                      | 'naka1234'   | pw   |
+| DEFAULTS-EXTRA-FILE     | y/n          | mysqldump5.6以降でwarningを出さないようにid,pwを設定する。 |
 | BKUPFILE_PREF           | 'bkup.mysql' | ファイル名のプリフィックス |
 | TMPDIR                  | '/tmp/mysql' | dumpデータを置く場所。このディレクトリ配下に${SERVER}/${SCHEME}が作られる |
 | FLG_GZIP                | 'y'          | gzip圧縮(y,n) |

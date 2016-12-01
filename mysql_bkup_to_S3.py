@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*- 
 
 
-#from pprint import pprint
+from pprint import pprint
 import os
 import sys
 import yaml
@@ -46,20 +46,27 @@ def main(config):
 	# create
 	dumplist.append({
 		'tag': 'create',
-		'cmd': ['-d'],
+		'cmd': ['--skip-triggers', '--no-data'],
 	})
+
+	# trigger
+	if (config['TRIGGER_FILE'].lower()=='y'):
+		dumplist.append({
+			'tag': 'trigger',
+			'cmd': ['--triggers', '--no-create-info', '--no-data'],
+		})
 
 	# data
 	dumplist.append({
 		'tag': 'data',
-		'cmd': map(lambda x, s: '--ignore-table={0}.{1}'.format(s,x), list_ignore, [scheme] * len(list_ignore)) + ['-t', '-c'],
+		'cmd': map(lambda x, s: '--ignore-table={0}.{1}'.format(s,x), list_ignore, [scheme] * len(list_ignore)) + ['--skip-triggers', '--no-create-info', '--complete-insert'],
 	})
 
 	# data(split tables)
 	for table in split_tables:
 		dumplist.append({
 			'tag': 'data.' + table,
-			'cmd': ['-t', '-c'] + split_tables[table]
+			'cmd': ['--skip-triggers', '--no-create-info', '--complete-insert'] + split_tables[table],
 		})
 
 
@@ -100,7 +107,7 @@ def main(config):
 		data['s3_src']   = data['path'] if (config['GZIP'].lower()!='y') else data['path'] + '.gz'
 
 	# exec mysqldump
-	exec_mysqldump(dumplist)
+	exec_mysqldump(dumplist, config)
 
 	# remove temporary file
 	if (config['DEFAULTS-EXTRA-FILE'].lower()=='y'):
@@ -121,12 +128,17 @@ def main(config):
 	return True
 
 
-def exec_mysqldump(dumplist):
+def exec_mysqldump(dumplist, config):
 	for data in dumplist:
 		syslog.syslog('mysqldump: START {0}'.format(data['basename']))
 
 		p = subprocess.Popen(data['cmd'], stderr=subprocess.STDOUT, shell=False)
 		p.wait()
+
+		if (data['tag']=='trigger'):
+			sed = config['SED_DEFINER'] + [data['path']]
+			p2 = subprocess.Popen(sed, stderr=subprocess.STDOUT, shell=False)
+			p2.wait()
 
 		syslog.syslog('mysqldump: END {0}'.format(data['basename']))
 
@@ -221,6 +233,9 @@ def checkopt(config):
 	if ('DEFAULTS-EXTRA-FILE' not in config or config['DEFAULTS-EXTRA-FILE']==False or not isinstance(config['DEFAULTS-EXTRA-FILE'], types.StringType)):
 		config['DEFAULTS-EXTRA-FILE'] = 'y'
 
+	if ('TRIGGER_FILE' not in config or config['TRIGGER_FILE']==False or not isinstance(config['TRIGGER_FILE'], types.StringType)):
+		config['TRIGGER_FILE'] = 'n'
+
 	if ('TMPDIR' not in config or config['TMPDIR']==False or not isinstance(config['TMPDIR'], types.StringType)):
 		config['TMPDIR'] = tempfile.gettempdir()
 
@@ -242,11 +257,14 @@ def checkopt(config):
 	if ('CMD_GZIP' not in config or config['CMD_GZIP']==False or not isinstance(config['CMD_GZIP'], types.StringType)):
 		config['CMD_GZIP'] = 'gzip'
 
+	if ('SED_DEFINER' not in config or config['SED_DEFINER']==False or not isinstance(config['SED_DEFINER'], types.ListType)):
+		config['SED_DEFINER'] = ['/bin/sed', '-i', '-E', 's/ \/\*\!500[0-9]+ DEFINER[^*/]*\*\/ / /g']
+
 	if ('S3_DIR' not in config or config['S3_DIR']==False or not isinstance(config['S3_DIR'], types.StringType)):
 		config['S3_DIR'] = ''
 
 	if ('OPT_BASE' not in config or not isinstance(config['OPT_BASE'], types.ListType)):
-		config['OPT_BASE'] = ['--quick', '--add-drop-table', '--add-locks', '--extended-insert', '--order-by-primary', '--single-transaction', '--skip-triggers']
+		config['OPT_BASE'] = ['--quick', '--add-drop-table', '--add-locks', '--extended-insert', '--order-by-primary', '--single-transaction']
 
 	if ('IGNORE_TABLES' not in config or not isinstance(config['IGNORE_TABLES'], types.ListType)):
 		config['IGNORE_TABLES'] = []

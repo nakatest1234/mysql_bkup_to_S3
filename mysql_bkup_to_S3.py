@@ -264,7 +264,7 @@ def checkopt(config):
 		config['S3_DIR'] = ''
 
 	if ('OPT_BASE' not in config or not isinstance(config['OPT_BASE'], types.ListType)):
-		config['OPT_BASE'] = ['--quick', '--add-drop-table', '--add-locks', '--extended-insert', '--order-by-primary', '--single-transaction']
+		config['OPT_BASE'] = ['--quick', '--add-drop-table', '--add-locks', '--extended-insert', '--order-by-primary', '--single-transaction', '--set-gtid-purged=OFF']
 
 	if ('IGNORE_TABLES' not in config or not isinstance(config['IGNORE_TABLES'], types.ListType)):
 		config['IGNORE_TABLES'] = []
